@@ -26,8 +26,14 @@ jobs:
         run: |
             pip install requests beautifulsoup4 pandas
       
-      - name: Run the scraper
-        run: python appen.py
+      - name: Run appen scraper
+        run: python Appen.py
+        continue-on-error: true
+
+      - name: Run Telus scraper
+        run: python telus.py
+        continue-on-error: true
+
 
       - name: Commit and push if there are changes
         run: |

@@ -6,22 +6,24 @@ import os
 
 def load_existing_ids(csv_file):
     if os.path.exists(csv_file):
-        existing_data = pd.read_csv(csv_file)
-        return set(existing_data['ID'])
+        existing_data = pd.read_csv(csv_file, dtype=str)  # Ensure IDs are read as strings
+        return set(existing_data['ID'].astype(str))  # Convert IDs to strings if not already
     return set()
 
 def fetch_job_details(url):
     response = requests.get(url)
     soup = BeautifulSoup(response.content, 'html.parser')
     details = soup.select_one('#mainContent > div.flowerWrapper > div > div > div > div.detailData.row.first.view__detail')
+    description_section = soup.select_one('#mainContent > div.flowerWrapper > div > div > div > div.detailDescription.row')
     
-    # Initialize the details dictionary with empty values
     job_details = {
         'Ref Number': '',
         'Primary Location': '',
         'Country': '',
         'Job Type': '',
-        'Work Style': ''
+        'Work Style': '',
+        'Job Description': '',
+        'Additional Job Description': ''
     }
 
     if details:
@@ -40,7 +42,19 @@ def fetch_job_details(url):
                 job_details['Job Type'] = value
             elif 'Work Style' in label:
                 job_details['Work Style'] = value
-    
+
+    if description_section:
+        # Job Description
+        description_texts = description_section.select('h3.icon, .crmDescription')
+        job_description_text = '\n\n'.join([desc.get_text(separator='\n', strip=True) for desc in description_texts])
+        job_details['Job Description'] = job_description_text.strip()
+
+        # Additional Job Description
+        additional_description = description_section.select_one('.view__detail-bottom')
+        if additional_description:
+            additional_job_description_text = additional_description.get_text(separator='\n', strip=True)
+            job_details['Additional Job Description'] = additional_job_description_text.strip()
+
     return job_details
 
 def scrape_jobs(main_url, existing_ids):
@@ -61,7 +75,7 @@ def scrape_jobs(main_url, existing_ids):
             title_tag = job.find('h3', class_='listSingleColumnItemTitle')
             job_title = title_tag.text.strip()
             apply_link = title_tag.find('a')['href']
-            job_id = apply_link.split('/')[-1]
+            job_id = str(apply_link.split('/')[-1])  # Convert job_id explicitly to string
             
             if job_id not in existing_ids:
                 # Fetch additional job details from individual job page
@@ -81,12 +95,15 @@ def scrape_jobs(main_url, existing_ids):
                     'Commitment': '',
                     'Location': '',
                     'Apply Link': apply_link,
-                    'Job Description': '',
-                    'Salary': ''
+                    'Job Description': additional_details['Job Description'],  # Correctly assign Job Description
+                    'Salary': '',
+                    'Additional Job Description': additional_details['Additional Job Description']  # Add this line
                 }
                 jobs_data.append(job_data)
                 processed_jobs += 1
-                print(f"Processed new job: {processed_jobs} - {job_title}")
+                print(f"Adding new job: {job_title} with ID: {job_id}")
+            else:
+                print(f"Skipping duplicate job: {job_title} with ID: {job_id}")
 
         # Find the 'Next' link, if it exists
         next_link = soup.select_one('a.paginationNextLink')
