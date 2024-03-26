@@ -4,6 +4,13 @@ import pandas as pd
 from datetime import datetime
 import os
 
+# Define the columns order globally
+columns_order = [
+    'Date Added', 'Time Added', 'ID', 'Ref Number', 'Category', 'Job Title',
+    'Workplace Type', 'Commitment', 'Location', 'Primary Location',
+    'Apply Link', 'Job Description', 'Additional Job Description', 'Salary'
+]
+
 def load_existing_ids(csv_file):
     if os.path.exists(csv_file):
         existing_data = pd.read_csv(csv_file, dtype=str)  # Ensure IDs are read as strings
@@ -19,7 +26,7 @@ def fetch_job_details(url):
     job_details = {
         'Ref Number': '',
         'Primary Location': '',
-        'Country': '',
+        'Location': '',  # Use this instead of Country
         'Job Type': '',
         'Work Style': '',
         'Job Description': '',
@@ -36,8 +43,8 @@ def fetch_job_details(url):
                 job_details['Ref Number'] = value
             elif 'Primary Location' in label:
                 job_details['Primary Location'] = value
-            elif 'Country' in label:
-                job_details['Country'] = value
+            elif 'Country' in label:  # This data will now go into 'Location'
+                job_details['Location'] = value
             elif 'Job Type' in label:
                 job_details['Job Type'] = value
             elif 'Work Style' in label:
@@ -88,16 +95,14 @@ def scrape_jobs(main_url, existing_ids):
                     'Ref Number': additional_details['Ref Number'],
                     'Category': '',
                     'Job Title': job_title,
-                    'Primary Location': additional_details['Primary Location'],
-                    'Country': additional_details['Country'],
-                    'Job Type': additional_details['Job Type'],
                     'Workplace Type': additional_details['Work Style'],
                     'Commitment': '',
-                    'Location': '',
+                    'Location': additional_details['Location'],  # Now has the contents of 'Country'
+                    'Primary Location': additional_details['Primary Location'],
                     'Apply Link': apply_link,
-                    'Job Description': additional_details['Job Description'],  # Correctly assign Job Description
-                    'Salary': '',
-                    'Additional Job Description': additional_details['Additional Job Description']  # Add this line
+                    'Job Description': additional_details['Job Description'],
+                    'Additional Job Description': additional_details['Additional Job Description'],
+                    'Salary': ''
                 }
                 jobs_data.append(job_data)
                 processed_jobs += 1
@@ -109,7 +114,9 @@ def scrape_jobs(main_url, existing_ids):
         next_link = soup.select_one('a.paginationNextLink')
         next_url = next_link['href'] if next_link else None
 
-    return pd.DataFrame(jobs_data)
+    new_job_listings_df = pd.DataFrame(jobs_data)
+    new_job_listings_df = new_job_listings_df[columns_order]  # Reorder columns
+    return new_job_listings_df
 
 def update_job_listings(csv_file, new_data):
     if os.path.exists(csv_file):
@@ -118,8 +125,8 @@ def update_job_listings(csv_file, new_data):
         combined_data.drop_duplicates(subset=['ID'], keep='first', inplace=True)
     else:
         combined_data = new_data
-        
-    combined_data.to_csv(csv_file, index=False)
+
+    combined_data.to_csv(csv_file, index=False, columns=columns_order)
 
 # URL to scrape
 url = 'https://jobs.telusinternational.com/en_US/careers/aicommunity'
@@ -137,3 +144,4 @@ csv_file = 'telus.csv'
 update_job_listings(csv_file, new_job_listings)
 
 print("TELUS job listings have been updated with new entries.")
+
