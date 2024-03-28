@@ -3,9 +3,9 @@ name: Scrape Job Listings
 on:
     workflow_dispatch:  # Allows manual trigger
     
-    schedule:
+    #schedule:
     # Run at 1 PM ET (17:00 UTC) every day
-      - cron: '0 17 * * *'
+    #  - cron: '0 17 * * *'
 
 permissions:
     contents: write
