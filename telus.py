@@ -82,41 +82,39 @@ def scrape_jobs(main_url, existing_ids):
             title_tag = job.find('h3', class_='listSingleColumnItemTitle')
             job_title = title_tag.text.strip()
             apply_link = title_tag.find('a')['href']
-            job_id = str(apply_link.split('/')[-1])  # Convert job_id explicitly to string
+            job_id = str(apply_link.split('/')[-1])
             
             if job_id not in existing_ids:
-                # Fetch additional job details from individual job page
                 additional_details = fetch_job_details(apply_link)
                 
-                job_data = {
+                job_data = {column: '' for column in columns_order}  # Initialize all columns with empty string
+                job_data.update({
                     'Date Added': date_str,
                     'Time Added': time_str,
                     'ID': job_id,
-                    'Ref Number': additional_details['Ref Number'],
-                    'Category': '',
+                    'Ref Number': additional_details.get('Ref Number', ''),
+                    'Category': '',  # Update this if you have category data
                     'Job Title': job_title,
-                    'Workplace Type': additional_details['Work Style'],
-                    'Commitment': '',
-                    'Location': additional_details['Location'],  # Now has the contents of 'Country'
-                    'Primary Location': additional_details['Primary Location'],
+                    'Workplace Type': additional_details.get('Work Style', ''),
+                    'Commitment': '',  # Update this if you have commitment data
+                    'Location': additional_details.get('Location', ''),
+                    'Primary Location': additional_details.get('Primary Location', ''),
                     'Apply Link': apply_link,
-                    'Job Description': additional_details['Job Description'],
-                    'Additional Job Description': additional_details['Additional Job Description'],
-                    'Salary': ''
-                }
+                    'Job Description': additional_details.get('Job Description', ''),
+                    'Additional Job Description': additional_details.get('Additional Job Description', ''),
+                    'Salary': ''  # Update this if you have salary data
+                })
                 jobs_data.append(job_data)
                 processed_jobs += 1
-                print(f"Adding new job: {job_title} with ID: {job_id}")
+                print(f"Processed job: {job_title} with ID: {job_id} [{processed_jobs}/{len(job_listings)}]")
             else:
                 print(f"Skipping duplicate job: {job_title} with ID: {job_id}")
 
-        # Find the 'Next' link, if it exists
         next_link = soup.select_one('a.paginationNextLink')
         next_url = next_link['href'] if next_link else None
 
-    new_job_listings_df = pd.DataFrame(jobs_data)
-    new_job_listings_df = new_job_listings_df[columns_order]  # Reorder columns
-    return new_job_listings_df
+    return pd.DataFrame(jobs_data, columns=columns_order)
+
 
 def update_job_listings(csv_file, new_data):
     if os.path.exists(csv_file):
